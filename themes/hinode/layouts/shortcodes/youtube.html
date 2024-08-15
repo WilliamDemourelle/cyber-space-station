@@ -1,0 +1,70 @@
+<!-- 
+    Copyright © 2024 The Hinode Team / Mark Dumay. All rights reserved.
+    Use of this source code is governed by The MIT License (MIT) that can be found in the LICENSE file.
+    Visit gethinode.com/license for more details.
+
+    This source code adapts the original embedded shortcode as maintained by the Hugo repository. It introduces the
+    following modifications:
+     - Isolated the styles to comply with the Content Security Policy
+     - Added validation of shortcode arguments
+     - Added support to retrieve the title from the video metadata
+     - Adjusted autoplay configuration
+     - Modified the layout
+    
+    The original source code is available on:
+    https://github.com/gohugoio/hugo/tpl/tplimpl/embedded/templates/shortcodes/youtube.html
+    Copyright 2022 The Hugo Authors. Licensed under the Apache License, Version 2.0.
+-->
+
+{{- $pc := .Page.Site.Config.Privacy.YouTube -}}
+{{- if not $pc.Disable -}}
+    {{ $error := false }}
+
+    <!-- Validate arguments -->
+    {{ if partial "utilities/IsInvalidArgs.html" (dict "structure" "youtube" "args" .Params) }}
+        {{ errorf "Invalid arguments: %s" .Position -}}
+        {{ $error = true }}
+    {{ end }}
+
+    <!-- Initialize arguments -->
+    {{- $id := "" -}}
+    {{- $class := "" -}}
+    {{- $title := "YouTube Video" }}
+    {{- $autoplay := false }}
+    {{- $autotitle := false }}
+    {{- $host := cond $pc.PrivacyEnhanced  "www.youtube-nocookie.com" "www.youtube.com" -}}
+
+    {{- if .IsNamedParams }}
+        {{ with .Get "id" }}{{ $id = . }}{{ end }}
+        {{ with .Get "class" }}{{ $class = . }}{{ end }}
+        {{ with .Get "title" }}{{ $title = . }}{{ end }}
+        {{ if isset .Params "autoplay" }}{{ $autoplay = partial "utilities/CastBool.html" (.Get "autoplay") }}{{ end -}}
+        {{ if isset .Params "autotitle" }}{{ $autotitle = partial "utilities/CastBool.html" (.Get "autotitle") }}{{ end -}}
+    {{ else }}
+        {{- $id = .Get 0 -}}
+        {{- $class = .Get 1 -}}
+    {{ end }}
+  
+    {{ $url := printf "https://%s/embed/%s?origin=%s" $host $id .Site.BaseURL }}
+    {{ $api := printf "https://www.youtube.com/oembed?format=json&url=%s" (printf "https://www.youtube.com/watch?v=%s" $id) }}
+
+    {{ if $autotitle }}
+        {{ with resources.GetRemote $api }}
+            {{ with .Err }}
+                {{ errorf "Unable to parse video metadata '%q': %s\n  %s" $api .Position . }}
+            {{ else }}
+                {{ $data := . | transform.Unmarshal }}
+                {{ with $data.title }}{{ $title = . }}{{ end }}
+            {{ end }}
+        {{ else }}
+            {{ errorf "Unable to get video metadata '%q': %s" $api .Position }}
+        {{ end }}
+    {{ end }}
+
+    <!-- Main code -->
+    <div class="youtube-embedded {{ $class }}">
+    <iframe src="{{ $url }}{{ if $autoplay }}&autoplay=1&mute=1{{ end }}"
+        allowfullscreen title="{{ $title }}" {{ if $autoplay }}allow="autoplay"{{ end }}>
+    </iframe>
+    </div>
+{{ end -}}

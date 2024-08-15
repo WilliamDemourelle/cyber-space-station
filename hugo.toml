@@ -1,4 +1,4 @@
 baseURL = 'https://cyberspacestation.org/'
 languageCode = 'en-us'
 title = 'Cyber Space Station'
-theme = 'LoveIt'
+theme = 'hinode'
